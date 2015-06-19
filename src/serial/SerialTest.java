@@ -1,18 +1,35 @@
 package serial;
+
 import gnu.io.CommPortIdentifier;
 import gnu.io.SerialPort;
 import gnu.io.SerialPortEvent;
 import gnu.io.SerialPortEventListener;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 
+import javax.swing.JTextArea;
+
 public class SerialTest implements SerialPortEventListener {
-    SerialPort serialPort;
+
+    public static class PortWrapper {
+        final CommPortIdentifier port;
+
+        public PortWrapper(CommPortIdentifier port) {
+            this.port = port;
+        }
+
+        @Override
+        public String toString() {
+            return port.getName();
+        }
+    }
+
     /** The port we're normally going to use. */
     private static final String PORT_NAMES[] = {
             "/dev/tty.usbserial-A9007UX1", // Mac OS X
@@ -20,6 +37,9 @@ public class SerialTest implements SerialPortEventListener {
             "/dev/ttyUSB", // Linux
             "COM", // Windows
     };
+
+    private SerialPort serialPort;
+    private JTextArea textArea;
     /**
      * A BufferedReader which will be fed by a InputStreamReader converting the
      * bytes into characters making the displayed results codepage independent
@@ -30,68 +50,32 @@ public class SerialTest implements SerialPortEventListener {
     /** Milliseconds to block while waiting for port open */
     private static final int TIME_OUT = 2000;
     /** Default bits per second for COM port. */
-    private static final int DATA_RATE = 9600;
+    private static final Integer[] DATA_RATES = { 110, 300, 600, 1200, 2400, 4800, 9600, 14400,
+            19200, 28800, 38400, 56000, 57600, 115200 };
 
-    public static String[] getAvailablePorts() {
+    private SerialTest(SerialPort serialPort, JTextArea textArea) throws IOException {
+        // open the streams
+        this.serialPort = serialPort;
+        this.input = new BufferedReader(new InputStreamReader(
+                serialPort.getInputStream()));
+        this.output = serialPort.getOutputStream();
+        this.textArea = textArea;
+    }
+
+    public static PortWrapper[] getAvailablePorts() {
         Enumeration portEnum = CommPortIdentifier.getPortIdentifiers();
 
-        List<String> result = new ArrayList<String>();
+        List<PortWrapper> result = new ArrayList<PortWrapper>();
         // First, Find an instance of serial port as set in PORT_NAMES.
         while (portEnum.hasMoreElements()) {
             CommPortIdentifier currPortId = (CommPortIdentifier) portEnum.nextElement();
             for (String portName : PORT_NAMES) {
                 if (currPortId.getName().startsWith(portName)) {
-                    result.add(currPortId.getName());
+                    result.add(new PortWrapper(currPortId));
                 }
             }
         }
-        return result.toArray(new String[0]);
-    }
-
-    public void initialize() {
-        // the next line is for Raspberry Pi and
-        // gets us into the while loop and was suggested here was suggested
-        // http://www.raspberrypi.org/phpBB3/viewtopic.php?f=81&t=32186
-        // System.setProperty("gnu.io.rxtx.SerialPorts", "/dev/ttyUSB0");
-
-        CommPortIdentifier portId = null;
-        Enumeration portEnum = CommPortIdentifier.getPortIdentifiers();
-
-        // First, Find an instance of serial port as set in PORT_NAMES.
-        while (portEnum.hasMoreElements()) {
-            CommPortIdentifier currPortId = (CommPortIdentifier) portEnum.nextElement();
-            for (String portName : PORT_NAMES) {
-                if (currPortId.getName().equals(portName)) {
-                    portId = currPortId;
-                    break;
-                }
-            }
-        }
-        if (portId == null) {
-            System.out.println("Could not find COM port.");
-            return;
-        }
-
-        try {
-            // open serial port, and use class name for the appName.
-            serialPort = (SerialPort) portId.open(this.getClass().getName(), TIME_OUT);
-
-            // set port parameters
-            serialPort.setSerialPortParams(DATA_RATE,
-                    SerialPort.DATABITS_8,
-                    SerialPort.STOPBITS_1,
-                    SerialPort.PARITY_NONE);
-
-            // open the streams
-            input = new BufferedReader(new InputStreamReader(serialPort.getInputStream()));
-            output = serialPort.getOutputStream();
-
-            // add event listeners
-            serialPort.addEventListener(this);
-            serialPort.notifyOnDataAvailable(true);
-        } catch (Exception e) {
-            System.err.println(e.toString());
-        }
+        return result.toArray(new PortWrapper[0]);
     }
 
     /**
@@ -114,6 +98,19 @@ public class SerialTest implements SerialPortEventListener {
             try {
                 String inputLine = input.readLine();
                 System.out.println(inputLine);
+                if (inputLine.startsWith("$GPRMC")) {
+                    String[] vals = inputLine.split(",");
+                    System.out.println("Fix time " + vals[1]);
+                    System.out.println("Status " + vals[2]);
+                    System.out.println("Latitude " + vals[3] + vals[4]);
+                    System.out.println("Longitude " + vals[5] + vals[6]);
+                    System.out.println("Speed " + vals[7]);
+                    System.out.println("Track angle " + vals[8]);
+                    System.out.println("Date " + vals[9]);
+                    System.out.println("Magnetic Variation " + vals[10]);
+                    System.out.println("Checksum " + vals[11]);
+                }
+                textArea.append(inputLine + "\n");
             } catch (Exception e) {
                 System.err.println(e.toString());
             }
@@ -122,22 +119,41 @@ public class SerialTest implements SerialPortEventListener {
         // ones.
     }
 
-    public static void main(String[] args) throws Exception {
-        SerialTest main = new SerialTest();
-        main.initialize();
-        Thread t = new Thread() {
-            @Override
-            public void run() {
-                // the following line will keep this app alive for 1000 seconds,
-                // waiting for events to occur and responding to them (printing
-                // incoming messages to console).
-                try {
-                    Thread.sleep(1000000);
-                } catch (InterruptedException ie) {
-                }
+    public static SerialTest initialize(PortWrapper portWrapper, int dataRate, JTextArea textArea) {
+
+        if (portWrapper == null) {
+            System.out.println("Could not find COM port.");
+            return null;
+        }
+
+        SerialPort serialPort = null;
+        try {
+            // open serial port, and use class name for the appName.
+            serialPort = (SerialPort) portWrapper.port.open(SerialTest.class.getName(), TIME_OUT);
+
+            // set port parameters
+            serialPort.setSerialPortParams(dataRate,
+                    SerialPort.DATABITS_8,
+                    SerialPort.STOPBITS_1,
+                    SerialPort.PARITY_NONE);
+
+            // add event listeners
+            SerialTest serialEventListener = new SerialTest(serialPort, textArea);
+            serialPort.addEventListener(serialEventListener);
+            serialPort.notifyOnDataAvailable(true);
+            return serialEventListener;
+        } catch (Exception e) {
+            System.err.println(e.toString());
+            try {
+                serialPort.close();
+            } catch (Exception e2) {
             }
-        };
-        t.start();
-        System.out.println("Started");
+        }
+        return null;
     }
+
+    public static Object[] getBaudRates() {
+        return DATA_RATES;
+    }
+
 }
