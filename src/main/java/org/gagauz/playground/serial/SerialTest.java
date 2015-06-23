@@ -1,9 +1,11 @@
-package serial;
+package org.gagauz.playground.serial;
 
 import gnu.io.CommPortIdentifier;
 import gnu.io.SerialPort;
 import gnu.io.SerialPortEvent;
 import gnu.io.SerialPortEventListener;
+
+import javax.swing.JTextArea;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -12,8 +14,6 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
-
-import javax.swing.JTextArea;
 
 public class SerialTest implements SerialPortEventListener {
 
@@ -50,8 +50,8 @@ public class SerialTest implements SerialPortEventListener {
     /** Milliseconds to block while waiting for port open */
     private static final int TIME_OUT = 2000;
     /** Default bits per second for COM port. */
-    private static final Integer[] DATA_RATES = { 110, 300, 600, 1200, 2400, 4800, 9600, 14400,
-            19200, 28800, 38400, 56000, 57600, 115200 };
+    private static final Integer[] DATA_RATES = {110, 300, 600, 1200, 2400, 4800, 9600, 14400,
+            19200, 28800, 38400, 56000, 57600, 115200};
 
     private SerialTest(SerialPort serialPort, JTextArea textArea) throws IOException {
         // open the streams
