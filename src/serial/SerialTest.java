@@ -56,8 +56,7 @@ public class SerialTest implements SerialPortEventListener {
     private SerialTest(SerialPort serialPort, JTextArea textArea) throws IOException {
         // open the streams
         this.serialPort = serialPort;
-        this.input = new BufferedReader(new InputStreamReader(
-                serialPort.getInputStream()));
+        this.input = new BufferedReader(new InputStreamReader(serialPort.getInputStream()));
         this.output = serialPort.getOutputStream();
         this.textArea = textArea;
     }
@@ -154,6 +153,16 @@ public class SerialTest implements SerialPortEventListener {
 
     public static Object[] getBaudRates() {
         return DATA_RATES;
+    }
+
+    public void sendData(String text) {
+        try {
+            System.out.println(text);
+            output.write(text.getBytes("latin1"));
+            output.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 }

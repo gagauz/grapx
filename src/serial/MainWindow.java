@@ -3,6 +3,7 @@ package serial;
 import java.awt.BorderLayout;
 import java.awt.EventQueue;
 import java.awt.FlowLayout;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
@@ -16,6 +17,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
 
 import serial.SerialTest.PortWrapper;
@@ -58,7 +60,7 @@ public class MainWindow {
         JPanel contentPanel = new JPanel();
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
         frame.setContentPane(contentPanel);
-        frame.setBounds(100, 100, 450, 300);
+        frame.setBounds(100, 100, 600, 400);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.addWindowListener(new WindowAdapter() {
             @Override
@@ -71,41 +73,75 @@ public class MainWindow {
         });
         contentPanel.setLayout(new BorderLayout(0, 0));
 
-        JPanel panelHeader = new JPanel();
-        FlowLayout flowLayout = (FlowLayout) panelHeader.getLayout();
+        JPanel pnHead = new JPanel();
+        pnHead.setLayout(new BorderLayout());
+
+        JPanel pnConnect = new JPanel();
+        FlowLayout flowLayout = (FlowLayout) pnConnect.getLayout();
         flowLayout.setHgap(10);
         flowLayout.setAlignment(FlowLayout.LEFT);
-        contentPanel.add(panelHeader, BorderLayout.NORTH);
-
-        JPanel panelText = new JPanel();
-        contentPanel.add(panelText);
+        contentPanel.add(pnHead, BorderLayout.NORTH);
+        pnHead.add(pnConnect, BorderLayout.NORTH);
 
         JLabel lblSerialPort = new JLabel("Serial port");
-        panelHeader.add(lblSerialPort);
+        pnConnect.add(lblSerialPort);
 
-        final JComboBox serialComboBox = new JComboBox();
-        serialComboBox.setModel(new DefaultComboBoxModel(SerialTest.getAvailablePorts()));
-        panelHeader.add(serialComboBox);
+        final JComboBox cbSerial = new JComboBox();
+        cbSerial.setModel(new DefaultComboBoxModel(SerialTest.getAvailablePorts()));
+        pnConnect.add(cbSerial);
 
-        final JComboBox baudRateComboBox = new JComboBox();
-        baudRateComboBox.setModel(new DefaultComboBoxModel(SerialTest.getBaudRates()));
-        baudRateComboBox.setSelectedItem(9600);
-        panelHeader.add(baudRateComboBox);
+        final JComboBox cbDataRate = new JComboBox();
+        cbDataRate.setModel(new DefaultComboBoxModel(SerialTest.getBaudRates()));
+        cbDataRate.setSelectedItem(9600);
+        pnConnect.add(cbDataRate);
 
         JButton btnConnect = new JButton("Connect");
-        panelHeader.add(btnConnect);
-        panelText.setLayout(new BorderLayout(0, 0));
+        pnConnect.add(btnConnect);
 
+        //
+
+        JPanel pnSend = new JPanel();
+        FlowLayout flowLayout2 = (FlowLayout) pnSend.getLayout();
+        flowLayout2.setHgap(10);
+        flowLayout2.setAlignment(FlowLayout.LEFT);
+
+        JLabel lbSendData = new JLabel("Send data");
+        pnSend.add(lbSendData);
+
+        final JTextField tfCommand = new JTextField();
+        tfCommand.setColumns(20);
+        tfCommand.setMargin(new Insets(4, 5, 4, 5));
+        pnSend.add(tfCommand);
+
+        final JButton btnSend = new JButton("Send");
+        btnSend.setEnabled(false);
+        pnSend.add(btnSend);
+
+        pnHead.add(pnSend, BorderLayout.SOUTH);
+
+        //
+        JPanel pnTextArea = new JPanel();
+        contentPanel.add(pnTextArea);
+        pnTextArea.setLayout(new BorderLayout(0, 0));
         final JTextArea textArea = new JTextArea();
-        // panelText.add(textArea);
-
         JScrollPane scrollPane = new JScrollPane(textArea);
-        panelText.add(scrollPane, BorderLayout.CENTER);
+        pnTextArea.add(scrollPane, BorderLayout.CENTER);
 
         textArea.setRows(10);
         textArea.setEditable(false);
         textArea.setBorder(new EmptyBorder(5, 5, 5, 5));
         textArea.setAutoscrolls(true);
+
+        btnSend.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String text = tfCommand.getText();
+                if (null != text && !"".equals(text) && currentListener != null) {
+                    currentListener.sendData(text);
+                }
+            }
+        });
 
         btnConnect.addActionListener(new ActionListener() {
 
@@ -113,8 +149,8 @@ public class MainWindow {
             public void actionPerformed(ActionEvent e) {
                 System.out.println(e.getActionCommand());
                 System.out.println(e.getSource());
-                PortWrapper portWrapper = (PortWrapper) serialComboBox.getSelectedItem();
-                Integer baudRate = (Integer) baudRateComboBox.getSelectedItem();
+                PortWrapper portWrapper = (PortWrapper) cbSerial.getSelectedItem();
+                Integer baudRate = (Integer) cbDataRate.getSelectedItem();
                 System.out.println(portWrapper);
                 System.out.println(baudRate);
                 if (null != portWrapper && null != baudRate) {
@@ -123,6 +159,7 @@ public class MainWindow {
                         currentListener.close();
                     }
                     currentListener = SerialTest.initialize(portWrapper, baudRate, textArea);
+                    btnSend.setEnabled(true);
                 }
             }
         });
