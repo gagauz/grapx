@@ -1,10 +1,5 @@
 package org.gagauz.playground.serial;
 
-import org.gagauz.playground.serial.SerialTest.PortWrapper;
-
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-
 import java.awt.BorderLayout;
 import java.awt.EventQueue;
 import java.awt.FlowLayout;
@@ -13,6 +8,19 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.border.EmptyBorder;
+
+import org.gagauz.playground.serial.SerialTest.PortWrapper;
 
 public class MainWindow {
 
@@ -87,8 +95,10 @@ public class MainWindow {
         cbDataRate.setSelectedItem(9600);
         pnConnect.add(cbDataRate);
 
-        JButton btnConnect = new JButton("Connect");
+        final JButton btnConnect = new JButton("Connect");
         pnConnect.add(btnConnect);
+        JButton btnRefresh = new JButton("Refresh");
+        pnConnect.add(btnRefresh);
 
         //
 
@@ -145,14 +155,23 @@ public class MainWindow {
                 Integer baudRate = (Integer) cbDataRate.getSelectedItem();
                 System.out.println(portWrapper);
                 System.out.println(baudRate);
-                if (null != portWrapper && null != baudRate) {
+                if (null != currentListener) {
+                    currentListener.close();
+                    btnConnect.setText("Connect");
+                } else if (null != portWrapper && null != baudRate) {
+                    btnConnect.setText("Disconnect");
                     System.out.println(portWrapper);
-                    if (null != currentListener) {
-                        currentListener.close();
-                    }
                     currentListener = SerialTest.initialize(portWrapper, baudRate, textArea);
                     btnSend.setEnabled(true);
                 }
+            }
+        });
+
+        btnRefresh.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                cbSerial.setModel(new DefaultComboBoxModel(SerialTest.getAvailablePorts()));
             }
         });
 
