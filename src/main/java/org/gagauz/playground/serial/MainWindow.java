@@ -1,6 +1,7 @@
 package org.gagauz.playground.serial;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.EventQueue;
 import java.awt.FlowLayout;
 import java.awt.Insets;
@@ -22,10 +23,13 @@ import javax.swing.border.EmptyBorder;
 
 import org.gagauz.playground.serial.SerialTest.PortWrapper;
 
-public class MainWindow {
+public class MainWindow implements SerialEventHandler {
 
     private JFrame frame;
     private SerialTest currentListener;
+    private JTextArea textArea;
+    private Diagram2D graphAcc;
+    private Diagram2D graphGyr;
 
     /**
      * Launch the application.
@@ -56,11 +60,11 @@ public class MainWindow {
      */
     private void initialize() {
         frame = new JFrame();
-
         JPanel contentPanel = new JPanel();
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
+
         frame.setContentPane(contentPanel);
-        frame.setBounds(100, 100, 600, 400);
+        frame.setBounds(100, 100, 800, 600);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.addWindowListener(new WindowAdapter() {
             @Override
@@ -125,7 +129,7 @@ public class MainWindow {
         JPanel pnTextArea = new JPanel();
         contentPanel.add(pnTextArea);
         pnTextArea.setLayout(new BorderLayout(0, 0));
-        final JTextArea textArea = new JTextArea();
+        textArea = new JTextArea();
         JScrollPane scrollPane = new JScrollPane(textArea);
         pnTextArea.add(scrollPane, BorderLayout.CENTER);
 
@@ -161,7 +165,7 @@ public class MainWindow {
                 } else if (null != portWrapper && null != baudRate) {
                     btnConnect.setText("Disconnect");
                     System.out.println(portWrapper);
-                    currentListener = SerialTest.initialize(portWrapper, baudRate, textArea);
+                    currentListener = SerialTest.initialize(portWrapper, baudRate, MainWindow.this);
                     btnSend.setEnabled(true);
                 }
             }
@@ -174,6 +178,43 @@ public class MainWindow {
                 cbSerial.setModel(new DefaultComboBoxModel(SerialTest.getAvailablePorts()));
             }
         });
+        graphGyr = new Diagram2D();
+        contentPanel.add(graphGyr);
+        // frame.pack();
+    }
+
+    @Override
+    public void handleEvent(String inputLine) {
+        String[] vals = inputLine.split(",");
+        if (vals[0].startsWith("$GPRMC")) {
+
+            System.out.println("Fix time " + vals[1]);
+            System.out.println("Status " + vals[2]);
+            System.out.println("Latitude " + vals[3] + vals[4]);
+            System.out.println("Longitude " + vals[5] + vals[6]);
+            System.out.println("Speed " + vals[7]);
+            System.out.println("Track angle " + vals[8]);
+            System.out.println("Date " + vals[9]);
+            System.out.println("Magnetic Variation " + vals[10]);
+            System.out.println("Checksum " + vals[11]);
+        } else if (vals.length > 4) {
+            try {
+                int ax = (int) Float.parseFloat(vals[0]);
+                int ay = (int) Float.parseFloat(vals[1]);
+                int az = (int) Float.parseFloat(vals[2]);
+                int gx = (int) Float.parseFloat(vals[3]);
+                int gy = (int) Float.parseFloat(vals[4]);
+                int gz = (int) Float.parseFloat(vals[5]);
+                graphGyr.addPoint(Color.RED, ax / 100);
+                graphGyr.addPoint(Color.GREEN, ay / 100);
+                graphGyr.addPoint(Color.BLUE, az / 100);
+                graphGyr.redraw();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        textArea.append(inputLine + "\n");
+        textArea.setCaretPosition(textArea.getDocument().getLength());
 
     }
 }

@@ -13,8 +13,6 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 
-import javax.swing.JTextArea;
-
 public class SerialTest implements SerialPortEventListener {
 
     public static class PortWrapper {
@@ -39,7 +37,7 @@ public class SerialTest implements SerialPortEventListener {
     };
 
     private SerialPort serialPort;
-    private JTextArea textArea;
+    private SerialEventHandler handler;
     /**
      * A BufferedReader which will be fed by a InputStreamReader converting the
      * bytes into characters making the displayed results codepage independent
@@ -53,12 +51,12 @@ public class SerialTest implements SerialPortEventListener {
     private static final Integer[] DATA_RATES = { 110, 300, 600, 1200, 2400, 4800, 9600, 14400,
             19200, 28800, 38400, 56000, 57600, 115200 };
 
-    private SerialTest(SerialPort serialPort, JTextArea textArea) throws IOException {
+    private SerialTest(SerialPort serialPort, SerialEventHandler handler) throws IOException {
         // open the streams
         this.serialPort = serialPort;
         this.input = new BufferedReader(new InputStreamReader(serialPort.getInputStream()));
         this.output = serialPort.getOutputStream();
-        this.textArea = textArea;
+        this.handler = handler;
     }
 
     public static PortWrapper[] getAvailablePorts() {
@@ -96,22 +94,7 @@ public class SerialTest implements SerialPortEventListener {
         if (oEvent.getEventType() == SerialPortEvent.DATA_AVAILABLE) {
 
             try {
-                String inputLine = input.readLine();
-                System.out.println(inputLine);
-                if (inputLine.startsWith("$GPRMC")) {
-                    String[] vals = inputLine.split(",");
-                    System.out.println("Fix time " + vals[1]);
-                    System.out.println("Status " + vals[2]);
-                    System.out.println("Latitude " + vals[3] + vals[4]);
-                    System.out.println("Longitude " + vals[5] + vals[6]);
-                    System.out.println("Speed " + vals[7]);
-                    System.out.println("Track angle " + vals[8]);
-                    System.out.println("Date " + vals[9]);
-                    System.out.println("Magnetic Variation " + vals[10]);
-                    System.out.println("Checksum " + vals[11]);
-                }
-                textArea.append(inputLine + "\n");
-                textArea.setCaretPosition(textArea.getDocument().getLength());
+                handler.handleEvent(input.readLine());
             } catch (Exception e) {
                 System.err.println(e.toString());
             }
@@ -120,7 +103,8 @@ public class SerialTest implements SerialPortEventListener {
         // ones.
     }
 
-    public static SerialTest initialize(PortWrapper portWrapper, int dataRate, JTextArea textArea) {
+    public static SerialTest initialize(PortWrapper portWrapper, int dataRate,
+            SerialEventHandler handler) {
 
         if (portWrapper == null) {
             System.out.println("Could not find COM port.");
@@ -139,7 +123,7 @@ public class SerialTest implements SerialPortEventListener {
                     SerialPort.PARITY_NONE);
 
             // add event listeners
-            SerialTest serialEventListener = new SerialTest(serialPort, textArea);
+            SerialTest serialEventListener = new SerialTest(serialPort, handler);
             serialPort.addEventListener(serialEventListener);
             serialPort.notifyOnDataAvailable(true);
             return serialEventListener;
